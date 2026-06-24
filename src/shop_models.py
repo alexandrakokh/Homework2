@@ -53,5 +53,6 @@ class Category:
             f"Всего товаров: {cls.product_count}"
         )
 
-    def __repr__(self):
-        return f"Category(name='{self.name}', products_count={len(self.products)})"
+
+def __repr__(self):
+    return f"Category(name='{self.name}', products_count={len(self.products)})"
