@@ -19,9 +19,9 @@ git clone https://github.com/alexandrakokh/Homework2.git
 
 ## Тестирование
 
-1. src\shop_models.py    94% 
+1. src\shop_models.py    96% 
 
-## TOTAL   94%
+## TOTAL   96%
 
 
 ## Лицензия:
