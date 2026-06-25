@@ -1,58 +1,83 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 class Product:
     def __init__(self, name: str, description: str, price, quantity: int):
         self.name: str = name
         self.description: str = description
-        # ИСПРАВЛЕНИЕ: Явно приводим цену к float.
-        # Теперь и 500, и 500.5 станут типом float.
-        self.price: float = float(price)
         self.quantity: int = quantity
 
+        # Приватный атрибут цены
+        self.__price: float = 0.0
+
+        # Используем сеттер для установки цены (он проверит значение)
+        self.price = price
+
+    @property
+    def price(self) -> float:
+        """Геттер для приватного атрибута цены."""
+        return self.__price
+
+    @price.setter
+    def price(self, value) -> None:
+        """Сеттер для цены с проверкой на положительное значение."""
+        new_price = float(value)
+        if new_price <= 0:
+            print("Цена не должна быть нулевая или отрицательная")
+            return
+        self.__price = new_price
+
+    @classmethod
+    def new_product(cls, data: Dict[str, any]) -> "Product":
+        """Класс-метод для создания продукта из словаря."""
+        return cls(name=data["name"], description=data["description"], price=data["price"], quantity=data["quantity"])
+
     def __repr__(self):
-        return (
-            f"Product(name='{self.name}', price={self.price}, quantity={self.quantity})"
-        )
+        return f"Product(name='{self.name}', price={self.price}, quantity={self.quantity})"
 
 
 class Category:
-    # Атрибуты КЛАССА (общие для всех объектов)
+    # Класс-атрибуты (счётчики)
     category_count: int = 0
     product_count: int = 0
 
-    def __init__(
-        self, name: str, description: str, products: Optional[List[Product]] = None
-    ):
-        # Инициализация атрибутов ЭКЗЕМПЛЯРА
+    def __init__(self, name: str, description: str, products: Optional[List[Product]] = None):
         self.name: str = name
         self.description: str = description
 
-        # Если список не передан, создаем пустой
-        self.products: List[Product] = products if products is not None else []
+        # Приватный список товаров
+        self.__products: List[Product] = []
 
-        # --- ЛОГИКА АВТОМАТИЧЕСКОГО ЗАПОЛНЕНИЯ АТРИБУТОВ КЛАССА ---
+        if products is not None:
+            for product in products:
+                self.add_product(product)
 
-        # 1. Увеличиваем счетчик категорий при создании нового объекта Category
         Category.category_count += 1
 
-        # 2. Увеличиваем общий счетчик товаров на количество товаров в текущем списке
-        Category.product_count += len(self.products)
-
     def add_product(self, product: Product) -> None:
-        """Добавляет товар в категорию и обновляет глобальный счетчик товаров."""
-        self.products.append(product)
-        # При ручном добавлении товара тоже нужно обновить общий счетчик
+        """Добавляет продукт в приватный список и увеличивает счётчик продуктов."""
+        self.__products.append(product)
         Category.product_count += 1
+
+    @property
+    def products(self) -> str:
+        """
+        Геттер для приватного списка товаров.
+        Возвращает строку со всеми продуктами по шаблону:
+        "Название продукта, X руб. Остаток: X шт.\n"
+        """
+        if not self.__products:
+            return ""
+
+        lines = []
+        for p in self.__products:
+            price_str = int(p.price) if p.price.is_integer() else p.price
+            lines.append(f"{p.name}, {price_str} руб. Остаток: {p.quantity} шт.\n")
+        return "".join(lines)
 
     @classmethod
     def get_stats(cls) -> str:
-        """Вспомогательный метод для вывода статистики."""
-        return (
-            f"Всего категорий: {cls.category_count}, "
-            f"Всего товаров: {cls.product_count}"
-        )
+        return f"Всего категорий: {cls.category_count}, " f"Всего товаров: {cls.product_count}"
 
-
-def __repr__(self):
-    return f"Category(name='{self.name}', products_count={len(self.products)})"
+    def __repr__(self):
+        return f"Category(name='{self.name}', products_count={len(self.__products)})"

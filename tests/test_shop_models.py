@@ -1,94 +1,100 @@
-import unittest
+import pytest
 from src.shop_models import Product, Category
 
 
-class TestProduct(unittest.TestCase):
-    """Тесты для класса Product"""
-
-    def test_product_initialization(self):
-        """Проверка корректной инициализации всех атрибутов"""
-        p = Product("Test Phone", "Описание теста", 1000.50, 10)
-
-        self.assertEqual(p.name, "Test Phone")
-        self.assertEqual(p.description, "Описание теста")
-        self.assertEqual(p.price, 1000.50)
-        self.assertEqual(p.quantity, 10)
-
-    def test_price_type_float(self):
-        """Цена должна быть float, даже если передали int"""
-        # Раньше этот тест падал, потому что 500 оставалось int.
-        # Теперь float(500) превратит его в 500.0
-        p = Product("Item", "Desc", 500, 5)
-        self.assertIsInstance(p.price, float)
-        self.assertEqual(p.price, 500.0)
-
-    def test_quantity_type_int(self):
-        """Количество должно быть int"""
-        p = Product("Item", "Desc", 500.0, 5)
-        self.assertIsInstance(p.quantity, int)
+def setup_function():
+    """Сбрасываем глобальные счётчики перед каждым тестом."""
+    Category.category_count = 0
+    Category.product_count = 0
 
 
-class TestCategory(unittest.TestCase):
-    """Тесты для класса Category"""
+# --- Тесты для Product ---
 
-    def setUp(self):
-        """Сбрасываем счетчики перед каждым тестом для полной изоляции"""
-        Category.category_count = 0
-        Category.product_count = 0
 
-    def test_category_initialization_empty(self):
-        """Создание категории без товаров"""
-        cat = Category("Empty Cat", "No products here")
+def test_product_initialization():
+    p = Product("Test Phone", "Описание теста", 1000.50, 10)
+    assert p.name == "Test Phone"
+    assert isinstance(p.price, float)
+    assert p.price == 1000.5
+    assert p.quantity == 10
 
-        self.assertEqual(cat.name, "Empty Cat")
-        self.assertEqual(len(cat.products), 0)
-        self.assertEqual(Category.category_count, 1)
-        self.assertEqual(Category.product_count, 0)
 
-    def test_category_initialization_with_products(self):
-        """Создание категории со списком товаров"""
-        p1 = Product("A", "Desc A", 10.0, 1)
-        p2 = Product("B", "Desc B", 20.0, 2)
+def test_setter_valid_price():
+    p = Product("Book", "Good book", 100.0, 5)
+    old_price = p.price
+    p.price = 200.5
+    assert p.price == 200.5
+    assert p.price != old_price
 
-        cat = Category("Gadgets", "Cool stuff", products=[p1, p2])
 
-        self.assertEqual(cat.name, "Gadgets")
-        self.assertEqual(len(cat.products), 2)
-        self.assertIn(p1, cat.products)
-        self.assertIn(p2, cat.products)
+def test_setter_zero_price_rejected(capfd):
+    p = Product("Book", "Good book", 100.0, 5)
+    old_price = p.price
+    p.price = 0
+    assert p.price == old_price
+    out, err = capfd.readouterr()
+    assert "Цена не должна быть нулевая или отрицательная" in out
 
-        # Проверка счетчиков: 1 категория + 2 товара
-        self.assertEqual(Category.category_count, 1)
-        self.assertEqual(Category.product_count, 2)
 
-    def test_add_product_updates_global_counter(self):
-        """Метод add_product должен увеличивать общий счетчик товаров"""
-        p1 = Product("X", "Desc X", 100.0, 1)
-        cat = Category("Test Cat", "Desc")
+def test_setter_negative_price_rejected(capfd):
+    p = Product("Book", "Good book", 100.0, 5)
+    old_price = p.price
+    p.price = -50
+    assert p.price == old_price
+    out, err = capfd.readouterr()
+    assert "Цена не должна быть нулевая или отрицательная" in out
 
-        # До добавления счетчик товаров должен быть 0 (благодаря setUp)
-        self.assertEqual(Category.product_count, 0)
 
-        cat.add_product(p1)
+def test_new_product_from_dict():
+    data = {"name": "Новый Товар", "description": "Создан через класс-метод", "price": 999, "quantity": 7}
+    p = Product.new_product(data)
+    assert isinstance(p, Product)
+    assert p.price == 999.0
 
-        # После добавления
-        self.assertEqual(len(cat.products), 1)
-        self.assertEqual(Category.product_count, 1)  # Глобальный счетчик вырос
 
-    def test_multiple_categories_stats(self):
-        """Проверка работы счетчиков при создании нескольких категорий"""
-        # Счетчики уже сброшены в setUp
+# --- Тесты для Category ---
 
-        p1 = Product("P1", "D1", 10.0, 1)
-        p2 = Product("P2", "D2", 20.0, 1)
-        p3 = Product("P3", "D3", 30.0, 1)
 
-        c1 = Category("Cat1", "Desc1", [p1, p2])  # 1 кат, 2 товара
-        c2 = Category("Cat2", "Desc2", [p3])  # 2 кат, 3 товара всего
+def test_products_property_format():
+    p1 = Product.new_product({"name": "Смартфон", "description": "Cool", "price": 80, "quantity": 15})
+    cat = Category("Электроника", "Гаджеты", [p1])
+    report = cat.products
+    expected = "Смартфон, 80 руб. Остаток: 15 шт.\n"
+    assert report == expected
 
-        self.assertEqual(Category.category_count, 2)
-        self.assertEqual(Category.product_count, 3)
 
-        # Проверка, что у каждой категории свой список, но счетчики общие
-        self.assertEqual(len(c1.products), 2)
-        self.assertEqual(len(c2.products), 1)
+def test_add_product_updates_counter():
+    p = Product("Item", "Desc", 100, 5)
+    cat = Category("Cat", "Desc")
+
+    assert Category.product_count == 0
+
+    cat.add_product(p)
+
+    assert Category.product_count == 1
+    assert cat.products == "Item, 100 руб. Остаток: 5 шт.\n"
+
+
+def test_multiple_products_in_products_property():
+    p1 = Product.new_product({"name": "A", "description": "", "price": 10, "quantity": 1})
+    p2 = Product.new_product({"name": "B", "description": "", "price": 20, "quantity": 2})
+    cat = Category("Test", "Test", [p1, p2])
+
+    report = cat.products
+    assert "A, 10 руб. Остаток: 1 шт.\n" in report
+    assert "B, 20 руб. Остаток: 2 шт.\n" in report
+
+
+def test_empty_products_returns_empty_string():
+    cat = Category("Empty", "Empty")
+    assert cat.products == ""
+
+
+def test_multiple_categories_stats():
+    p1 = Product("A", "A", 10, 1)
+    p2 = Product("B", "B", 20, 1)
+    c1 = Category("C1", "C1", [p1])
+    c2 = Category("C2", "C2", [p2])
+
+    assert Category.product_count == 2
+    assert Category.category_count == 2
