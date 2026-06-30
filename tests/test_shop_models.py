@@ -1,4 +1,6 @@
-from src.shop_models import Product, Category
+import pytest
+from src.shop_models import Product, Category, Smartphone, LawnGrass
+
 
 def setup_function():
     """Сбрасываем глобальные счётчики перед каждым тестом."""
@@ -7,7 +9,6 @@ def setup_function():
 
 
 # --- Product ---
-
 def test_product_initialization():
     p = Product("Test", "Desc", 100, 5)
     assert p.name == "Test"
@@ -136,3 +137,70 @@ def test_product_add_invalid_type_returns_not_implemented():
     # а не финальную ошибку, которую сформировал интерпретатор.
     result = p.__add__("string")
     assert result is NotImplemented
+
+def test_smartphone_inheritance_and_str():
+    s = Smartphone("TestPhone", "Desc", 1000, 5, "Высокая", "ModelX", "256GB", "Чёрный")
+    assert isinstance(s, Product)
+    assert "Модель: ModelX" in str(s)
+    assert "Память: 256GB" in str(s)
+
+
+def test_lawn_grass_inheritance_and_str():
+    g = LawnGrass("TestGrass", "Desc", 2000, 10, "Россия", "7–14 дней", "Зелёный")
+    assert isinstance(g, Product)
+    assert "Страна: Россия" in str(g)
+    assert "Срок прорастания: 7–14 дней" in str(g)
+
+
+def test_add_same_type_smartphone():
+    s1 = Smartphone("S1", "Desc", 100, 1, "High", "M1", "64GB", "Black")
+    s2 = Smartphone("S2", "Desc", 200, 2, "High", "M2", "128GB", "White")
+    assert s1 + s2 == (100 * 1) + (200 * 2)
+
+
+def test_add_same_type_lawn_grass():
+    g1 = LawnGrass("G1", "Desc", 300, 3, "RU", "7 дней", "Green")
+    g2 = LawnGrass("G2", "Desc", 400, 4, "PL", "10 дней", "Dark")
+    assert g1 + g2 == (300 * 3) + (400 * 4)
+
+
+def test_add_different_types_raises_type_error():
+    s = Smartphone("S", "Desc", 100, 1, "High", "M", "64GB", "Black")
+    g = LawnGrass("G", "Desc", 300, 3, "RU", "7 дней", "Green")
+    with pytest.raises(TypeError):
+        s + g
+
+
+def test_add_with_number_works():
+    p = Product("P", "Desc", 50, 2)
+    assert p + 100 == (50 * 2) + 100
+    assert 200 + p == 200 + (50 * 2)
+
+def test_add_valid_product():
+    cat = Category("Cat", "Desc")
+    p = Product("P", "Desc", 100, 2)
+    cat.add_product(p)
+    assert len(cat._Category__products) == 1  # доступ к приватному полю через name mangling
+
+
+def test_add_smartphone():
+    cat = Category("Phones", "Phones")
+    s = Smartphone("S", "Desc", 100, 1, "High", "M", "64GB", "Black")
+    cat.add_product(s)
+    assert len(cat._Category__products) == 1
+
+
+def test_add_invalid_type_raises_type_error():
+    cat = Category("Bad", "Bad")
+    with pytest.raises(TypeError):
+        cat.add_product("Не продукт")
+
+    with pytest.raises(TypeError):
+        cat.add_product(12345)
+
+
+def test_constructor_rejects_invalid_products():
+    # Проверка, что и в конструкторе тоже работает защита
+    invalid_items = ["bad", 123]
+    with pytest.raises(TypeError):
+        Category("BadCat", "Desc", invalid_items)

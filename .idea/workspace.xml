@@ -4,9 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="8ccb302d-010f-4029-bfa6-80de030c14b1" name="Changes" comment="изменены режимы доступа для уже имеющихся атрибутов.">
+    <list default="true" id="8ccb302d-010f-4029-bfa6-80de030c14b1" name="Changes" comment="Оптимизируем работу с данными путем добавления магических методов">
       <change beforePath="$PROJECT_DIR$/.coverage" beforeDir="false" afterPath="$PROJECT_DIR$/.coverage" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/main.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/src/shop_models.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/shop_models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tests/test_shop_models.py" beforeDir="false" afterPath="$PROJECT_DIR$/tests/test_shop_models.py" afterDir="false" />
@@ -52,15 +53,15 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python tests.Python tests in test_shop_models.py.executor": "Run",
-    "Python.main.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "git-widget-placeholder": "develop",
-    "settings.editor.selected.configurable": "preferences.pluginManager"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python tests.Python tests in test_shop_models.py.executor&quot;: &quot;Run&quot;,
+    &quot;Python.main.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;develop&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;preferences.pluginManager&quot;
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected="Python tests.Python tests in test_shop_models.py">
     <configuration name="main" type="PythonConfigurationType" factoryName="Python" temporary="true" nameIsGenerated="true">
       <module name="Интернет-магазин" />
@@ -154,12 +155,21 @@
       <option name="project" value="LOCAL" />
       <updated>1782377083184</updated>
     </task>
-    <option name="localTasksCounter" value="5" />
+    <task id="LOCAL-00005" summary="Оптимизируем работу с данными путем добавления магических методов">
+      <option name="closed" value="true" />
+      <created>1782383950006</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1782383950014</updated>
+    </task>
+    <option name="localTasksCounter" value="6" />
     <servers />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="new project" />
     <MESSAGE value="изменены режимы доступа для уже имеющихся атрибутов." />
-    <option name="LAST_COMMIT_MESSAGE" value="изменены режимы доступа для уже имеющихся атрибутов." />
+    <MESSAGE value="Оптимизируем работу с данными путем добавления магических методов" />
+    <option name="LAST_COMMIT_MESSAGE" value="Оптимизируем работу с данными путем добавления магических методов" />
   </component>
 </project>
