@@ -1,5 +1,6 @@
 from typing import List, Optional, Dict, Union
 
+
 class Product:
     def __init__(self, name: str, description: str, price, quantity: int):
         self.name: str = name
@@ -34,13 +35,20 @@ class Product:
         return self.price * self.quantity
 
     def __add__(self, other: Union['Product', int, float]) -> Union[float, 'Product']:
-        if isinstance(other, Product):
-            return self._total_cost() + other._total_cost()
-        elif isinstance(other, (int, float)):
+        # Разрешаем складывать с числом
+        if isinstance(other, (int, float)):
             return self._total_cost() + float(other)
-        else:
-            # Важно: возвращаем NotImplemented, чтобы Python мог попробовать __radd__ у другого операнда
-            return NotImplemented
+
+        # Если другой объект — тоже Product, проверяем, что это ТОЧНО такой же класс
+        if isinstance(other, Product):
+            if type(self) is not type(other):
+                raise TypeError(
+                    f"Нельзя складывать товары разных типов: "
+                    f"{type(self).__name__} и {type(other).__name__}"
+                )
+            return self._total_cost() + other._total_cost()
+
+        return NotImplemented
 
     def __radd__(self, other: Union[int, float]) -> float:
         if isinstance(other, (int, float)):
@@ -55,6 +63,63 @@ class Product:
         return f"Product(name='{self.name}', price={self.price}, quantity={self.quantity})"
 
 
+class Smartphone(Product):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        price,
+        quantity: int,
+        efficiency: str,
+        model: str,
+        memory: str,
+        color: str
+    ):
+        super().__init__(name, description, price, quantity)
+        self.efficiency: str = efficiency
+        self.model: str = model
+        self.memory: str = memory
+        self.color: str = color
+
+    def __str__(self) -> str:
+        base = super().__str__()
+        return (f"{base} | Модель: {self.model}, "
+                f"Память: {self.memory}, "
+                f"Производительность: {self.efficiency}, "
+                f"Цвет: {self.color}")
+
+    def __repr__(self):
+        return (f"Smartphone(name='{self.name}', model='{self.model}', "
+                f"memory='{self.memory}', color='{self.color}')")
+
+
+class LawnGrass(Product):
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        price,
+        quantity: int,
+        country: str,
+        germination_period: str,
+        color: str
+    ):
+        super().__init__(name, description, price, quantity)
+        self.country: str = country
+        self.germination_period: str = germination_period
+        self.color: str = color
+
+    def __str__(self) -> str:
+        base = super().__str__()
+        return (f"{base} | Страна: {self.country}, "
+                f"Срок прорастания: {self.germination_period}, "
+                f"Цвет травы: {self.color}")
+
+    def __repr__(self):
+        return (f"LawnGrass(name='{self.name}', country='{self.country}', "
+                f"germination_period='{self.germination_period}')")
+
+
 class Category:
     category_count: int = 0
     product_count: int = 0
@@ -62,25 +127,32 @@ class Category:
     def __init__(self, name: str, description: str, products: Optional[List[Product]] = None):
         self.name: str = name
         self.description: str = description
-
         self.__products: List[Product] = []
 
         if products is not None:
             for product in products:
+                # Используем защищённый метод add_product
                 self.add_product(product)
 
         Category.category_count += 1
 
     def add_product(self, product: Product) -> None:
+        """
+        Добавляет продукт в категорию.
+        Разрешено добавлять только экземпляры Product или его наследников.
+        """
+        # Проверка: product должен быть экземпляром Product (или его наследника)
+        if not isinstance(product, Product):
+            raise TypeError(
+                f"В категорию можно добавлять только объекты типа Product "
+                f"(или его наследников). Получен тип: {type(product).__name__}"
+            )
+
         self.__products.append(product)
         Category.product_count += 1
 
     @property
     def products(self) -> str:
-        """
-        Возвращает строку со всеми продуктами, каждый на новой строке.
-        У последнего элемента нет завершающего \\n.
-        """
         if not self.__products:
             return ""
         lines = [str(product) for product in self.__products]
