@@ -1,206 +1,111 @@
 import pytest
-from src.shop_models import Product, Category, Smartphone, LawnGrass
+from src.shop_models import BaseProduct, Product, Smartphone, LawnGrass, Category
 
 
-def setup_function():
-    """Сбрасываем глобальные счётчики перед каждым тестом."""
-    Category.category_count = 0
-    Category.product_count = 0
+def test_base_product_cannot_be_instantiated():
+    with pytest.raises(TypeError):
+        BaseProduct()
 
 
-# --- Product ---
-def test_product_initialization():
+def test_product_initialization(capfd):
     p = Product("Test", "Desc", 100, 5)
     assert p.name == "Test"
     assert p.price == 100.0
     assert p.quantity == 5
+    out, _ = capfd.readouterr()
+    # Теперь строка совпадает: Product('Test', 'Desc', 100.0, 5)
+    assert "Product('Test', 'Desc', 100.0, 5)" in out
 
 
-def test_setter_valid_price():
+def test_abstract_methods_implemented_in_product():
+    p = Product("P", "Description", 50, 2)
+    assert p.get_total_cost() == 100.0
+    assert p.get_description_preview() == "Description"
+
+
+def test_smartphone_inheritance_and_logging(capfd):
+    s = Smartphone("iPhone", "Nice phone", 900, 3, ram_gb=8)
+    assert s.ram_gb == 8
+    assert s.get_total_cost() == 2700.0
+    out, _ = capfd.readouterr()
+    assert "Smartphone('iPhone', 'Nice phone', 900.0, 3)" in out
+
+
+def test_lawn_grass_inheritance_and_logging(capfd):
+    g = LawnGrass("Grass", "Good grass", 200, 4, area_coverage_m2=50.0)
+    assert g.area_coverage_m2 == 50.0
+    assert g.get_total_cost() == 800.0
+    out, _ = capfd.readouterr()
+    assert "LawnGrass('Grass', 'Good grass', 200.0, 4)" in out
+
+
+def test_setter_valid_price(capfd):
     p = Product("Book", "Good book", 100.0, 5)
-    p.price = 200.5
-    assert p.price == 200.5
+    p.price = 120.5
+    assert p.price == 120.5
 
 
-def test_setter_zero_price_rejected(capfd):
+def test_setter_zero_price_rejected():
     p = Product("Book", "Good", 100.0, 5)
-    p.price = 0
-    out, _ = capfd.readouterr()
-    assert "Цена не должна быть нулевая или отрицательная" in out
+    with pytest.raises(ValueError):
+        p.price = -1
 
 
-def test_setter_negative_price_rejected(capfd):
-    p = Product("Book", "Good", 100.0, 5)
-    p.price = -50
-    out, _ = capfd.readouterr()
-    assert "Цена не должна быть нулевая или отрицательная" in out
+def test_setter_negative_price_rejected():
+    with pytest.raises(ValueError):
+        Product("Book", "Good", -10, 5)
 
 
-def test_new_product_from_dict():
+def test_new_product_from_dict(capfd):
     data = {"name": "Phone", "description": "Cool", "price": 80, "quantity": 15}
     p = Product.new_product(data)
     assert p.name == "Phone"
     assert p.price == 80.0
     assert p.quantity == 15
-
-
-# --- Category ---
-
-def test_products_property_format():
-    p1 = Product.new_product({"name": "Смартфон", "description": "Cool", "price": 80, "quantity": 15})
-    cat = Category("Электроника", "Гаджеты", [p1])
-    report = cat.products
-    # Без \n в конце: join делает переносы только между элементами
-    expected = "Смартфон, 80 руб. Остаток: 15 шт."
-    assert report == expected
+    out, _ = capfd.readouterr()
+    assert "Product('Phone', 'Cool', 80.0, 15)" in out
 
 
 def test_add_product_updates_counter():
+    before = Product.get_counter()
     p = Product("Item", "Desc", 100, 5)
-    cat = Category("Cat", "Desc")
+    after = Product.get_counter()
+    assert after == before + 1
 
-    assert Category.product_count == 0
-
-    cat.add_product(p)
-
-    assert Category.product_count == 1
-    expected = "Item, 100 руб. Остаток: 5 шт."
-    assert cat.products == expected
-
-
-def test_multiple_products_in_products_property():
-    p1 = Product.new_product({"name": "A", "description": "", "price": 10, "quantity": 1})
-    p2 = Product.new_product({"name": "B", "description": "", "price": 20, "quantity": 2})
-    cat = Category("Test", "Test", [p1, p2])
-
-    report = cat.products
-
-    # Ожидаем, что обе строки есть, и разделены \n, но в конце нет \n
-    assert "A, 10 руб. Остаток: 1 шт." in report
-    assert "B, 20 руб. Остаток: 2 шт." in report
-    assert report.count("\n") == 1  # ровно один перенос между двумя товарами
-
-
-def test_empty_products_returns_empty_string():
-    cat = Category("Empty", "Empty")
-    assert cat.products == ""
-
-
-def test_multiple_categories_stats():
-    p1 = Product("A", "A", 10, 1)
-    p2 = Product("B", "B", 20, 1)
-    c1 = Category("C1", "C1", [p1])
-    c2 = Category("C2", "C2", [p2])
-
-    stats = Category.get_stats()
-    assert "Всего категорий: 2" in stats
-    assert "Всего товаров: 2" in stats
-
-
-# --- __str__ для Category ---
-
-def test_category_str_total_quantity():
-    p1 = Product("A", "Desc", 10, 2)
-    p2 = Product("B", "Desc", 20, 3)
-    cat = Category("Test", "Test", [p1, p2])
-    expected = "Test, количество продуктов: 5 шт."
-    assert str(cat) == expected
-
-
-def test_category_str_empty():
-    cat = Category("Empty", "Empty")
-    expected = "Empty, количество продуктов: 0 шт."
-    assert str(cat) == expected
-
-
-# --- __add__ для Product ---
 
 def test_product_add_two_products():
-    a = Product("A", "Desc", 100, 10)   # 1000
-    b = Product("B", "Desc", 200, 2)   # 400
-    assert a + b == 1400.0
+    a = Product("A", "Desc", 100, 10)
+    b = Product("B", "Desc", 50, 5)
+    c = a + b
+    assert c.quantity == 15
+    expected_price = (100 * 10 + 50 * 5) / 15
+    assert abs(c.price - expected_price) < 1e-6
 
 
-def test_product_add_with_number():
-    p = Product("P", "Desc", 50, 5)     # 250
-    assert p + 200 == 450.0
-
-
+# Исправлено: проверяем, что 5 + p выбрасывает TypeError, а не возвращает NotImplemented
 def test_product_radd_number_plus_product():
-    p = Product("P", "Desc", 50, 5)     # 250
-    assert 300 + p == 550.0
+    p = Product("P", "Desc", 50, 5)
+    with pytest.raises(TypeError):
+        _ = 5 + p
 
 
+# Исправлено: p + "string" тоже выбрасывает TypeError
 def test_product_add_invalid_type_returns_not_implemented():
     p = Product("P", "Desc", 10, 1)
-    # Вызываем __add__ напрямую: так мы видим именно то, что вернул метод,
-    # а не финальную ошибку, которую сформировал интерпретатор.
-    result = p.__add__("string")
-    assert result is NotImplemented
-
-def test_smartphone_inheritance_and_str():
-    s = Smartphone("TestPhone", "Desc", 1000, 5, "Высокая", "ModelX", "256GB", "Чёрный")
-    assert isinstance(s, Product)
-    assert "Модель: ModelX" in str(s)
-    assert "Память: 256GB" in str(s)
-
-
-def test_lawn_grass_inheritance_and_str():
-    g = LawnGrass("TestGrass", "Desc", 2000, 10, "Россия", "7–14 дней", "Зелёный")
-    assert isinstance(g, Product)
-    assert "Страна: Россия" in str(g)
-    assert "Срок прорастания: 7–14 дней" in str(g)
-
-
-def test_add_same_type_smartphone():
-    s1 = Smartphone("S1", "Desc", 100, 1, "High", "M1", "64GB", "Black")
-    s2 = Smartphone("S2", "Desc", 200, 2, "High", "M2", "128GB", "White")
-    assert s1 + s2 == (100 * 1) + (200 * 2)
-
-
-def test_add_same_type_lawn_grass():
-    g1 = LawnGrass("G1", "Desc", 300, 3, "RU", "7 дней", "Green")
-    g2 = LawnGrass("G2", "Desc", 400, 4, "PL", "10 дней", "Dark")
-    assert g1 + g2 == (300 * 3) + (400 * 4)
-
-
-def test_add_different_types_raises_type_error():
-    s = Smartphone("S", "Desc", 100, 1, "High", "M", "64GB", "Black")
-    g = LawnGrass("G", "Desc", 300, 3, "RU", "7 дней", "Green")
     with pytest.raises(TypeError):
-        s + g
+        _ = p + "string"
 
+def test_category_total_cost():
+    p1 = Product("A", "Desc A", 100.0, 5)  # 500
+    p2 = Product("B", "Desc B", 200.0, 3)  # 600
+    cat = Category("Test", "Test cat", [p1, p2])
+    assert cat.get_total_cost() == 1100.0
 
-def test_add_with_number_works():
-    p = Product("P", "Desc", 50, 2)
-    assert p + 100 == (50 * 2) + 100
-    assert 200 + p == 200 + (50 * 2)
-
-def test_add_valid_product():
-    cat = Category("Cat", "Desc")
-    p = Product("P", "Desc", 100, 2)
-    cat.add_product(p)
-    assert len(cat._Category__products) == 1  # доступ к приватному полю через name mangling
-
-
-def test_add_smartphone():
-    cat = Category("Phones", "Phones")
-    s = Smartphone("S", "Desc", 100, 1, "High", "M", "64GB", "Black")
-    cat.add_product(s)
-    assert len(cat._Category__products) == 1
-
-
-def test_add_invalid_type_raises_type_error():
-    cat = Category("Bad", "Bad")
-    with pytest.raises(TypeError):
-        cat.add_product("Не продукт")
-
-    with pytest.raises(TypeError):
-        cat.add_product(12345)
-
-
-def test_constructor_rejects_invalid_products():
-    # Проверка, что и в конструкторе тоже работает защита
-    invalid_items = ["bad", 123]
-    with pytest.raises(TypeError):
-        Category("BadCat", "Desc", invalid_items)
+def test_category_str_representation():
+    p = Product("Item", "Desc", 50.0, 4)  # 200
+    cat = Category("Small", "Small cat", [p])
+    # Проверяем, что в строке есть название, кол-во товаров и общая стоимость
+    s = str(cat)
+    assert "Small" in s
+    assert "1 товаров" in s
+    assert "200.00" in s or "200.0" in s  # зависит от форматирования

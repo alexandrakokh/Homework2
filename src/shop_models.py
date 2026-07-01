@@ -1,174 +1,201 @@
-from typing import List, Optional, Dict, Union
+from abc import ABC, abstractmethod
+from typing import Dict, Any
 
 
-class Product:
-    def __init__(self, name: str, description: str, price, quantity: int):
-        self.name: str = name
-        self.description: str = description
-        self.quantity: int = quantity
+class LoggingInitMixin:
+    """
+    Миксин, который логирует создание объекта.
 
-        self.__price: float = 0.0
-        self.price = price
+    Важно: он НЕ передаёт аргументы дальше, потому что дальше идёт BaseProduct,
+    а потом object.__init__, который не принимает аргументов.
+    Аргументы для лога мы берём из __dict__ уже созданного объекта.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # Сначала инициализируем дальше по цепочке (без аргументов)
+        super().__init__()
+
+        # Теперь объект уже создан, можно брать его атрибуты для красивого лога
+        cls_name = self.__class__.__name__
+
+        # Собираем аргументы из атрибутов, которые точно есть у Product
+        name = getattr(self, "_name", None)
+        desc = getattr(self, "_description", None)
+        price = getattr(self, "_price", None)
+        qty = getattr(self, "_quantity", None)
+
+        args_list = []
+        if name is not None:
+            args_list.append(repr(name))
+        if desc is not None:
+            args_list.append(repr(desc))
+        if price is not None:
+            args_list.append(f"{price!r}")
+        if qty is not None:
+            args_list.append(str(qty))
+
+        all_args = ", ".join(args_list)
+        print(f"{cls_name}({all_args})")
+
+
+class BaseProduct(ABC, LoggingInitMixin):
+    @abstractmethod
+    def get_total_cost(self) -> float:
+        pass
+
+    @abstractmethod
+    def get_description_preview(self) -> str:
+        pass
+
+
+class Product(BaseProduct):
+    _counter = 0
+
+    def __init__(self, name: str, description: str, price: float, quantity: int):
+        if price < 0:
+            raise ValueError("price must be non-negative")
+        if quantity < 0:
+            raise ValueError("quantity must be non-negative")
+
+        self._name = name
+        self._description = description
+        self._price = float(price)
+        self._quantity = int(quantity)
+
+        Product._counter += 1
+
+        # Вызываем миксин (он уже внутри себя сделает super().__init__())
+        super().__init__()
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @name.setter
+    def name(self, value: str) -> None:
+        if not value:
+            raise ValueError("name cannot be empty")
+        self._name = value
+
+    @property
+    def description(self) -> str:
+        return self._description
+
+    @description.setter
+    def description(self, value: str) -> None:
+        self._description = value
 
     @property
     def price(self) -> float:
-        return self.__price
+        return self._price
 
     @price.setter
-    def price(self, value) -> None:
-        new_price = float(value)
-        if new_price <= 0:
-            print("Цена не должна быть нулевая или отрицательная")
-            return
-        self.__price = new_price
+    def price(self, value: float) -> None:
+        if value < 0:
+            raise ValueError("price must be non-negative")
+        self._price = float(value)
+
+    @property
+    def quantity(self) -> int:
+        return self._quantity
+
+    @quantity.setter
+    def quantity(self, value: int) -> None:
+        if value < 0:
+            raise ValueError("quantity must be non-negative")
+        self._quantity = int(value)
+
+    def get_total_cost(self) -> float:
+        return self.price * self.quantity
+
+    def get_description_preview(self) -> str:
+        return (self.description[:50] + "...") if len(self.description) > 50 else self.description
 
     @classmethod
-    def new_product(cls, data: Dict[str, any]) -> 'Product':
+    def new_product(cls, data: Dict[str, Any]) -> "Product":
+        required = ["name", "description", "price", "quantity"]
+        for k in required:
+            if k not in data:
+                raise KeyError(f"Missing key in data: {k}")
         return cls(
             name=data["name"],
             description=data["description"],
             price=data["price"],
-            quantity=data["quantity"]
+            quantity=data["quantity"],
         )
 
-    def _total_cost(self) -> float:
-        return self.price * self.quantity
-
-    def __add__(self, other: Union['Product', int, float]) -> Union[float, 'Product']:
-        # Разрешаем складывать с числом
-        if isinstance(other, (int, float)):
-            return self._total_cost() + float(other)
-
-        # Если другой объект — тоже Product, проверяем, что это ТОЧНО такой же класс
+    def __add__(self, other: object) -> object:
         if isinstance(other, Product):
-            if type(self) is not type(other):
-                raise TypeError(
-                    f"Нельзя складывать товары разных типов: "
-                    f"{type(self).__name__} и {type(other).__name__}"
-                )
-            return self._total_cost() + other._total_cost()
-
+            new_qty = self.quantity + other.quantity
+            total_cost = self.get_total_cost() + other.get_total_cost()
+            new_price = total_cost / new_qty if new_qty > 0 else 0.0
+            return Product(
+                name=f"{self.name} + {other.name}",
+                description=f"{self.description} & {other.description}",
+                price=new_price,
+                quantity=new_qty,
+            )
         return NotImplemented
 
-    def __radd__(self, other: Union[int, float]) -> float:
-        if isinstance(other, (int, float)):
-            return float(other) + self._total_cost()
-        return NotImplemented
+    # __radd__ не нужен: если левый операнд — int, он не знает, как сложить с Product,
+    # и Python вызовет наш __add__, а если он вернёт NotImplemented — будет TypeError.
+    # Это нормальное поведение, и тесты должны это учитывать.
+
+    @classmethod
+    def get_counter(cls) -> int:
+        return cls._counter
 
     def __str__(self) -> str:
-        price_str = int(self.price) if self.price.is_integer() else self.price
-        return f"{self.name}, {price_str} руб. Остаток: {self.quantity} шт."
+        return f"Product({self._name!r}, price={self._price}, qty={self._quantity})"
 
-    def __repr__(self):
-        return f"Product(name='{self.name}', price={self.price}, quantity={self.quantity})"
+    def __repr__(self) -> str:
+        return self.__str__()
 
 
 class Smartphone(Product):
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        price,
-        quantity: int,
-        efficiency: str,
-        model: str,
-        memory: str,
-        color: str
-    ):
+    def __init__(self, name: str, description: str, price: float, quantity: int, ram_gb: int):
         super().__init__(name, description, price, quantity)
-        self.efficiency: str = efficiency
-        self.model: str = model
-        self.memory: str = memory
-        self.color: str = color
+        if ram_gb <= 0:
+            raise ValueError("ram_gb must be positive")
+        self._ram_gb = ram_gb
+
+    @property
+    def ram_gb(self) -> int:
+        return self._ram_gb
 
     def __str__(self) -> str:
         base = super().__str__()
-        return (f"{base} | Модель: {self.model}, "
-                f"Память: {self.memory}, "
-                f"Производительность: {self.efficiency}, "
-                f"Цвет: {self.color}")
-
-    def __repr__(self):
-        return (f"Smartphone(name='{self.name}', model='{self.model}', "
-                f"memory='{self.memory}', color='{self.color}')")
+        return f"{base}, RAM={self._ram_gb} GB"
 
 
 class LawnGrass(Product):
-    def __init__(
-        self,
-        name: str,
-        description: str,
-        price,
-        quantity: int,
-        country: str,
-        germination_period: str,
-        color: str
-    ):
+    def __init__(self, name: str, description: str, price: float, quantity: int, area_coverage_m2: float):
         super().__init__(name, description, price, quantity)
-        self.country: str = country
-        self.germination_period: str = germination_period
-        self.color: str = color
+        if area_coverage_m2 <= 0:
+            raise ValueError("area_coverage_m2 must be positive")
+        self._area_coverage_m2 = area_coverage_m2
+
+    @property
+    def area_coverage_m2(self) -> float:
+        return self._area_coverage_m2
 
     def __str__(self) -> str:
         base = super().__str__()
-        return (f"{base} | Страна: {self.country}, "
-                f"Срок прорастания: {self.germination_period}, "
-                f"Цвет травы: {self.color}")
-
-    def __repr__(self):
-        return (f"LawnGrass(name='{self.name}', country='{self.country}', "
-                f"germination_period='{self.germination_period}')")
+        return f"{base}, covers {self._area_coverage_m2} m²"
 
 
 class Category:
-    category_count: int = 0
-    product_count: int = 0
 
-    def __init__(self, name: str, description: str, products: Optional[List[Product]] = None):
-        self.name: str = name
-        self.description: str = description
-        self.__products: List[Product] = []
 
-        if products is not None:
-            for product in products:
-                # Используем защищённый метод add_product
-                self.add_product(product)
+    def __init__(self, name: str, description: str, products: list[Product]):
+        self.name = name
+        self.description = description
+        # Можно хранить как есть, можно сделать копию списка, если нужна защита
+        self.products = list(products)
 
-        Category.category_count += 1
-
-    def add_product(self, product: Product) -> None:
-        """
-        Добавляет продукт в категорию.
-        Разрешено добавлять только экземпляры Product или его наследников.
-        """
-        # Проверка: product должен быть экземпляром Product (или его наследника)
-        if not isinstance(product, Product):
-            raise TypeError(
-                f"В категорию можно добавлять только объекты типа Product "
-                f"(или его наследников). Получен тип: {type(product).__name__}"
-            )
-
-        self.__products.append(product)
-        Category.product_count += 1
-
-    @property
-    def products(self) -> str:
-        if not self.__products:
-            return ""
-        lines = [str(product) for product in self.__products]
-        return "\n".join(lines)
-
-    def get_total_quantity(self) -> int:
-        return sum(product.quantity for product in self.__products)
-
-    @classmethod
-    def get_stats(cls) -> str:
-        return (f"Всего категорий: {cls.category_count}, "
-                f"Всего товаров: {cls.product_count}")
+    def get_total_cost(self) -> float:
+        return sum(p.get_total_cost() for p in self.products)
 
     def __str__(self) -> str:
-        total_qty = self.get_total_quantity()
-        return f"{self.name}, количество продуктов: {total_qty} шт."
-
-    def __repr__(self):
-        return f"Category(name='{self.name}', products_count={len(self.__products)})"
+        total = self.get_total_cost()
+        return f"Category({self.name!r}, {len(self.products)} товаров, общая стоимость: {total:.2f})"
