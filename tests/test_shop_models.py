@@ -13,7 +13,6 @@ def test_product_initialization(capfd):
     assert p.price == 100.0
     assert p.quantity == 5
     out, _ = capfd.readouterr()
-    # Теперь строка совпадает: Product('Test', 'Desc', 100.0, 5)
     assert "Product('Test', 'Desc', 100.0, 5)" in out
 
 
@@ -82,18 +81,17 @@ def test_product_add_two_products():
     assert abs(c.price - expected_price) < 1e-6
 
 
-# Исправлено: проверяем, что 5 + p выбрасывает TypeError, а не возвращает NotImplemented
 def test_product_radd_number_plus_product():
     p = Product("P", "Desc", 50, 5)
     with pytest.raises(TypeError):
         _ = 5 + p
 
 
-# Исправлено: p + "string" тоже выбрасывает TypeError
 def test_product_add_invalid_type_returns_not_implemented():
     p = Product("P", "Desc", 10, 1)
     with pytest.raises(TypeError):
         _ = p + "string"
+
 
 def test_category_total_cost():
     p1 = Product("A", "Desc A", 100.0, 5)  # 500
@@ -101,11 +99,47 @@ def test_category_total_cost():
     cat = Category("Test", "Test cat", [p1, p2])
     assert cat.get_total_cost() == 1100.0
 
+
 def test_category_str_representation():
     p = Product("Item", "Desc", 50.0, 4)  # 200
     cat = Category("Small", "Small cat", [p])
-    # Проверяем, что в строке есть название, кол-во товаров и общая стоимость
     s = str(cat)
     assert "Small" in s
     assert "1 товаров" in s
-    assert "200.00" in s or "200.0" in s  # зависит от форматирования
+    assert "200.00" in s or "200.0" in s
+
+
+def test_task_1_zero_quantity_raises_value_error():
+    """
+    Критически важно проверить точное совпадение текста ошибки.
+    """
+    with pytest.raises(ValueError) as exc_info:
+        Product(name="Bad Item", description="No stock", price=100.0, quantity=0)
+
+    # Строгое сравнение сообщения, как требуется в задании
+    assert str(exc_info.value) == "Товар с нулевым количеством не может быть добавлен"
+
+
+def test_task_2_average_price_calculation():
+    """
+    Формула: сумма цен / количество товаров.
+    """
+    p1 = Product("A", "Desc", 100.0, 5)
+    p2 = Product("B", "Desc", 200.0, 10)
+    p3 = Product("C", "Desc", 300.0, 2)
+
+    cat = Category("Electronics", "Gadgets", [p1, p2, p3])
+    avg = cat.average_price()
+
+    # (100 + 200 + 300) / 3 = 200.0
+    assert avg == 200.0
+
+
+def test_task_2_average_price_empty_category():
+    """
+    Ожидается возврат 0.0, а не ошибка ZeroDivisionError.
+    """
+    cat = Category("Empty", "No items", [] )
+    avg = cat.average_price()
+
+    assert avg == 0.0
