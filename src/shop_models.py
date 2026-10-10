@@ -1,30 +1,28 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
 class LoggingInitMixin:
     """
     Миксин, который логирует создание объекта.
-
-    Важно: он НЕ передаёт аргументы дальше, потому что дальше идёт BaseProduct,
-    а потом object.__init__, который не принимает аргументов.
-    Аргументы для лога мы берём из __dict__ уже созданного объекта.
     """
 
     def __init__(self, *args, **kwargs):
-        # Сначала инициализируем дальше по цепочке (без аргументов)
+        # Сначала инициализируем дальше по цепочке (до object)
         super().__init__()
 
         # Теперь объект уже создан, можно брать его атрибуты для красивого лога
         cls_name = self.__class__.__name__
 
-        # Собираем аргументы из атрибутов, которые точно есть у Product
+        # Собираем аргументы из атрибутов
         name = getattr(self, "_name", None)
         desc = getattr(self, "_description", None)
         price = getattr(self, "_price", None)
         qty = getattr(self, "_quantity", None)
 
+        # ИСПРАВЛЕНИЕ: теперь список сразу создаётся пустым
         args_list = []
+
         if name is not None:
             args_list.append(repr(name))
         if desc is not None:
@@ -52,10 +50,15 @@ class Product(BaseProduct):
     _counter = 0
 
     def __init__(self, name: str, description: str, price: float, quantity: int):
-        if price < 0:
-            raise ValueError("price must be non-negative")
+        # ЗАДАНИЕ 1: Проверка на нулевое количество
+        if quantity == 0:
+            raise ValueError("Товар с нулевым количеством не может быть добавлен")
+
+        # Проверка на отрицательные значения
         if quantity < 0:
             raise ValueError("quantity must be non-negative")
+        if price < 0:
+            raise ValueError("price must be non-negative")
 
         self._name = name
         self._description = description
@@ -64,7 +67,7 @@ class Product(BaseProduct):
 
         Product._counter += 1
 
-        # Вызываем миксин (он уже внутри себя сделает super().__init__())
+        # Вызываем миксин ПОСЛЕ создания атрибутов, чтобы он мог их прочитать
         super().__init__()
 
     @property
@@ -137,10 +140,6 @@ class Product(BaseProduct):
             )
         return NotImplemented
 
-    # __radd__ не нужен: если левый операнд — int, он не знает, как сложить с Product,
-    # и Python вызовет наш __add__, а если он вернёт NotImplemented — будет TypeError.
-    # Это нормальное поведение, и тесты должны это учитывать.
-
     @classmethod
     def get_counter(cls) -> int:
         return cls._counter
@@ -185,16 +184,22 @@ class LawnGrass(Product):
 
 
 class Category:
-
-
-    def __init__(self, name: str, description: str, products: list[Product]):
+    def __init__(self, name: str, description: str, products: List[Product]):
         self.name = name
         self.description = description
-        # Можно хранить как есть, можно сделать копию списка, если нужна защита
         self.products = list(products)
 
     def get_total_cost(self) -> float:
         return sum(p.get_total_cost() for p in self.products)
+
+    # ЗАДАНИЕ 2: Расчет среднего ценника с обработкой ошибки деления на ноль
+    def average_price(self) -> float:
+        try:
+            total = sum(p.price for p in self.products)
+            count = len(self.products)
+            return total / count
+        except ZeroDivisionError:
+            return 0.0
 
     def __str__(self) -> str:
         total = self.get_total_cost()
